@@ -1,0 +1,8 @@
+{
+    "client_id": "1d6eaaff-b8af-4d61-b182-c76ea1a78399",
+    "authorized_redirects": [
+        "http://localhost:8010",
+        "http://localhost:5173"
+    ],
+    "client_secret": "d441f7b1-4c3e-4a2e-993b-b987acc7e61d"
+}

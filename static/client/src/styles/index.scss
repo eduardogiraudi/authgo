@@ -1,0 +1,263 @@
+
+/*.password-input {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    justify-content: center;
+    width: 100%;
+    padding: 5px; 
+    border-radius: var(--bs-border-radius); 
+    border: 1px solid #ccc;
+    height: 40px;
+    input{
+      height: 38px !important;
+    }
+  }
+  .form-control:focus {
+    box-shadow: transparent !important;
+}
+  .otp-container{
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    padding: 0 100px;
+    .otp-input{
+      width:3rem !important;
+      height:3rem !important;
+      border-radius:var(--bs-border-radius) !important;
+      &:focus{
+        outline-color: #81E9FF !important;
+      }
+    }
+  }
+  .card-title{
+    padding: var(--bs-card-spacer-y) var(--bs-card-spacer-x);
+    margin: 0;
+  }
+  .container{
+    max-width: 720px;
+  }
+  .card{
+    border: transparent;
+    box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  }
+  input[type="text"]{
+    height: 40px;
+    border: 1px solid #ccc;
+  }
+  .password-input input {
+    border: none;
+  }
+  .password-input button{
+    border: none;
+    background: none;
+    cursor: pointer;
+    color:#192A56;
+  }
+  nav p{
+    text-align: center;
+    width: 100%;
+  }
+  a{
+    color: #81E9FF;
+  }
+#root{
+  background-color: #81E9FF;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+}
+.btn-info{
+  // background-color: #81E9FF !important;
+  color: white;
+  border: transparent;
+}
+.btn-primary:disabled{
+  color: #192A56;
+}*/
+
+// --- Palette Colori Claude ---
+$bg-color: #f9f8f6;           // Il classico avorio/crema di Anthropic
+$card-bg: #ffffff;
+$text-main: #1d1919;
+$text-muted: #66625e;
+$accent-color: #d97757;       // Colore "mora/ruggine" per i dettagli
+$button-bg: #1d1919;          // Bottoni quasi neri
+$button-hover: #353030;
+$border-color: #e5e2de;
+$focus-ring: rgba(217, 119, 87, 0.2);
+
+#root {
+  background-color: $bg-color;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', -apple-system, sans-serif; // Tipografia pulita
+  color: $text-main;
+}
+
+.container {
+  max-width: 480px; // Più stretto per un look più elegante
+}
+
+.card {
+  background-color: $card-bg;
+  border: 1px solid $border-color;
+  border-radius: 16px; // Arrotondamento morbido
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  padding: 1.5rem;
+}
+
+.card-title {
+  padding-bottom: 1.5rem;
+  h2 {
+    font-weight: 600;
+    font-size: 1.75rem;
+    letter-spacing: -0.02em;
+    color: $text-main;
+  }
+}
+
+// --- Campi di Input ---
+label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: $text-muted;
+  margin-bottom: 0.5rem;
+}
+
+input[type="text"], 
+.password-input,
+.form-control {
+  background-color: transparent !important;
+  border: 1.5px solid $border-color !important;
+  border-radius: 10px !important;
+  height: 48px !important; // Leggermente più alti
+  transition: all 0.2s ease;
+  color: $text-main;
+
+  &:focus, &:focus-within {
+    border-color: $accent-color !important;
+    box-shadow: 0 0 0 4px $focus-ring !important;
+    outline: none;
+  }
+}
+
+.password-input {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  
+  input {
+    border: none !important;
+    height: 100% !important;
+    padding-left: 0;
+    &:focus { box-shadow: none !important; }
+  }
+
+  button {
+    border: none;
+    background: none;
+    color: $text-muted;
+    transition: color 0.2s;
+    &:hover { color: $accent-color; }
+  }
+}
+
+// --- Pulsanti (ActionButton) ---
+.btn-info {
+  background-color: $button-bg !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 24px !important; // Pill-shaped come Claude
+  padding: 12px 24px !important;
+  font-weight: 500;
+  transition: transform 0.1s ease, background-color 0.2s ease !important;
+
+  &:hover:not(:disabled) {
+    background-color: $button-hover !important;
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    background-color: $border-color !important;
+    color: $text-muted !important;
+    cursor: not-allowed;
+  }
+}
+
+// --- OTP Section ---
+.otp-container {
+  padding: 1rem 0;
+  gap: 10px;
+  
+  .otp-input {
+    width: 3.5rem !important;
+    height: 4rem !important;
+    border: 1.5px solid $border-color !important;
+    border-radius: 12px !important;
+    font-size: 1.5rem;
+    font-weight: 600;
+    
+    &:focus {
+      border-color: $accent-color !important;
+      outline: none;
+    }
+  }
+}
+
+// --- Navigazione & Link ---
+nav {
+  margin-top: 1.5rem;
+  p {
+    font-size: 0.95rem;
+    color: $text-muted;
+  }
+  a {
+    color: $accent-color;
+    text-decoration: none;
+    font-weight: 500;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// --- Alerts ---
+.alert-danger {
+  background-color: #fff5f5;
+  border: 1px solid #feb2b2;
+  color: #c53030;
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+altcha-widget {
+  --altcha-max-width: 100%;
+  --altcha-border-radius: 10px;
+  --altcha-color-border: #e5e2de; // $border-color
+  --altcha-color-bg: #ffffff;
+  --altcha-color-text: #4a4643; // $text-muted
+  
+  --altcha-color-primary: #d97757; 
+  
+  --altcha-color-state-normal: #f9f8f6;
+  
+  font-family: inherit; 
+  margin-top: 0.5rem;
+  
+  &::part(footer), &::part(logo) {
+    display: none !important;
+  }
+}
+
+.altcha-label {
+  margin-bottom: 0px !important;
+}

@@ -1,0 +1,6 @@
+**/.env
+
+**/node_modules/
+
+private_es512.pem
+public_es512.pem
