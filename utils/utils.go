@@ -21,7 +21,7 @@ func VerifyCodeVerifier(code_verifier string, code_challenge string) bool{
 }
 
 func PasswordValidator(password string) bool {
-	if len(password) < 12 || len(password) > 100 {
+	if len(password) < 12 || len(password) > 36 {
 		return false
 	}
 	hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)

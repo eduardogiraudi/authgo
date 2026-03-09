@@ -1,6 +1,7 @@
 package routes
 
 import (
+		"go.mongodb.org/mongo-driver/mongo"
     "net/http"
     "auth/responses"
     "auth/jwts"
@@ -23,13 +24,14 @@ import (
     "errors"
         "github.com/golang-jwt/jwt/v5"
                 "github.com/google/uuid"
+                emailverifier "github.com/AfterShip/email-verifier"
 )
-
+var verifier = emailverifier.NewVerifier().EnableSMTPCheck()
 func SetupRoutes(mux *http.ServeMux) {
     
 
     //TODO
-    mux.HandleFunc("POST /register", middleware.RequireJSONParams(login, "username", "password", "captchaValue"))
+    mux.HandleFunc("POST /register", middleware.RequireJSONParams(register, "username", "password", "captchaValue"))
     mux.HandleFunc("POST /introspect",userinfo)
     //DONE BUT NEEDS NEW FEATURES
     mux.HandleFunc("POST /token",middleware.RequireJSONParams(token, "grant_type"))
@@ -59,8 +61,83 @@ func SetupRoutes(mux *http.ServeMux) {
 type AuthorizeRequest struct{
     Confirmation     bool `json:"confirmation"`
 }
+type RegisterRequest struct{
+    Username     string `json:"username"`
+    Password     string `json:"password"`
+    CaptchaValue string `json:"captchaValue"`
+}
+func register(w http.ResponseWriter, r *http.Request){
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+    
+    var req RegisterRequest
+    secret := os.Getenv("ALTCHA_HMAC_KEY")
+
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.BadRequest(w, "invalid_json", "Invalid JSON")
+		return
+	}
+ ok, errcaptcha := altcha.VerifySolution(req.CaptchaValue, secret, true)
+    if errcaptcha != nil || !ok {
+        responses.Unauthorized(w, "invalid_altcha", "Invalid Altcha value or expired")
+        return
+    }
+	result, err := verifier.Verify(req.Username)
+	if err != nil {
+		responses.ServerError(w)
+		return
+	}
+	if !result.Syntax.Valid {
+		responses.BadRequest(w, "invalid_email_format", "Invalid email format")
+		return
+	}
 
 
+	if result.Reachable == "no" {
+		responses.BadRequest(w, "invalid_email", "Unreachable email")
+		return
+	}
+
+	if result.Disposable {
+		responses.Forbidden(w, "Temporary emails are not allowed")
+		return
+	}
+	if utils.PasswordValidator(req.Password) == false {
+		responses.BadRequest(w, "invalid_password", "Password must be between 12 and 36 characters long, contain at least one lowercase letter, one uppercase letter, one number, and one special character.")
+		return
+	}
+	collection := db.MongoDB.Collection("users")
+	var user bson.M
+    err = collection.FindOne(ctx, bson.M{"$or": []interface{}{bson.M{"username": req.Username}, bson.M{"email": req.Username},},}).Decode(&user)
+    if err == nil {
+            responses.BadRequest(w, "user_already_exists", "Username or email already in use")
+            return
+        }
+    
+        if !errors.Is(err, mongo.ErrNoDocuments) {
+            responses.ServerError(w)
+            return
+        }
+        password, errpass := passwords.GenerateHash(req.Password)
+        if errpass!=nil{
+        responses.ServerError(w)
+        return
+        }
+    
+    user = bson.M{
+            "username": req.Username,
+            "password": password,
+        }
+    _,err=collection.InsertOne(ctx,user)
+    if err != nil {
+    responses.ServerError(w)
+    return 
+    }
+    
+    responses.OK(w, "ok")
+    return
+    
+}
 func logout(w http.ResponseWriter, r *http.Request){
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
     defer cancel()

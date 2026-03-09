@@ -15,8 +15,8 @@ Supported Flows:
  - Client Credentials Flow. (may be dismissed after client_assertion support)
 
 To-do roadmap:
- - Implement PAR (Pushed Authorization Request) method. Implement
- - client_assertion authentication.
+ - Implement PAR (Pushed Authorization Request) method. 
+ - Implement client_assertion authentication.
  - Switch signing algorithms from ECDSA (ES256/512) to Ed25519 for better transparency (nothing-up-my-sleeve philosophy)
  - Migrate semi-stateful session tracking from MongoDB to Redis (SETEX) for his speed, automatic expiration (to avoid session buildup).
  - Transition from BRPOP/RPUSH to Redis Streams.
