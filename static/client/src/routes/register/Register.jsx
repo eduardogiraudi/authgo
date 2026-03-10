@@ -8,7 +8,8 @@ import { useNavigate } from "react-router-dom"
 import Captcha from "@components/captcha/Captcha"
 
 function Register() {
-    const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+      const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [confirmPassword, setConfirmPassword] = useState('')
     const [err, setErr] = useState('')
@@ -28,10 +29,11 @@ function Register() {
       };
     const handleRegistration = async () => {
         try {
-            if (password === confirmPassword && validatePassword() && validateEmail(username)) {
+            if (password === confirmPassword && validatePassword() && validateEmail(email)) {
                 await auth_api.post('/register', JSON.stringify({
                     password: password,
-                    username: username,
+                  username: username,
+                    email: email,
                     captchaValue: captchaValue
                 }))
                 navigate('/?'+new URLSearchParams(location.search).toString())
@@ -49,9 +51,12 @@ function Register() {
         </Card.Title>
         <Card.Body className="d-flex flex-column">
 
+          <TextInput value={username} setValue={setUsername} label="Username:" className=""
+          error={username&&username.length<5&&`Username should be at least 5 characters long`}
 
-            <TextInput value={username} setValue={setUsername} label="Email:" className=""
-            error={!validateEmail(username)&&username&&`${username} is not a valid email.`}
+          />
+            <TextInput value={email} setValue={setEmail} label="Email:" className=""
+            error={!validateEmail(email)&&email&&`${email} is not a valid email.`}
 
             />
             <PasswordInput 
@@ -75,7 +80,7 @@ function Register() {
             <ActionButton 
                 text="Register" 
                 onClick={handleRegistration} 
-                disabled={!(validatePassword()&& password===confirmPassword && captchaValue&&validateEmail(username))}
+                disabled={!(validatePassword()&& password===confirmPassword && captchaValue&&validateEmail(email) && username.length>=5)}
                 />
             {err && <Alert variant="danger">{err}</Alert>}
 

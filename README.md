@@ -17,6 +17,7 @@ Supported Flows:
 To-do roadmap:
  - Implement PAR (Pushed Authorization Request) method. 
  - Implement client_assertion authentication.
+ - Registration confirmation/otp on registration
  - Switch signing algorithms from ECDSA (ES256/512) to Ed25519 for better transparency (nothing-up-my-sleeve philosophy)
  - Migrate semi-stateful session tracking from MongoDB to Redis (SETEX) for his speed, automatic expiration (to avoid session buildup).
  - Transition from BRPOP/RPUSH to Redis Streams.
@@ -24,8 +25,7 @@ To-do roadmap:
  - Add missing routes from the original Flask project:
 	 - GET /devices (get a list of all active session and its corresponding
    User-Agent) 
-	 - POST /revoke_devices (revoke all sessions or a specific one)   
-	 - POST /register     
+	 - POST /revoke_devices (revoke all sessions or a specific one)     
 	 - POST /introspect     
 	 - POST /change_password_with_token    
 	 - POST /change_password_with_recover_link     
@@ -78,3 +78,22 @@ Error Codes (reason field):
  - Default: If valid is false, the system displays the remaining_attempts.
 
 Note: If no worker responds within 30 seconds, the server will return a 500 Internal Server Error.
+
+## How to Run it
+
+### Prerequisites
+- **Go** 
+- **Node.js** & **pnpm** (for the React client)
+- **Redis** & **MongoDB** (running and accessible)
+- **OTP Worker**: Remember to have your worker listening on Redis (see "OTP Worker Required" above).
+- **env files**: set the .env files in the client folder and in the root folder. (see the .env.example for examples)
+
+### Start the project
+Use the provided automation script to build the frontend and launch the server:
+
+```bash
+chmod +x run
+./run
+
+```
+

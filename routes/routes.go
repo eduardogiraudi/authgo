@@ -31,7 +31,7 @@ func SetupRoutes(mux *http.ServeMux) {
     
 
     //TODO
-    mux.HandleFunc("POST /register", middleware.RequireJSONParams(register, "username", "password", "captchaValue"))
+    mux.HandleFunc("POST /register", middleware.RequireJSONParams(register, "username","email", "password", "captchaValue"))
     mux.HandleFunc("POST /introspect",userinfo)
     //DONE BUT NEEDS NEW FEATURES
     mux.HandleFunc("POST /token",middleware.RequireJSONParams(token, "grant_type"))
@@ -63,6 +63,7 @@ type AuthorizeRequest struct{
 }
 type RegisterRequest struct{
     Username     string `json:"username"`
+    Email     string `json:"email"`
     Password     string `json:"password"`
     CaptchaValue string `json:"captchaValue"`
 }
@@ -82,7 +83,7 @@ func register(w http.ResponseWriter, r *http.Request){
         responses.Unauthorized(w, "invalid_altcha", "Invalid Altcha value or expired")
         return
     }
-	result, err := verifier.Verify(req.Username)
+	result, err := verifier.Verify(req.Email)
 	if err != nil {
 		responses.ServerError(w)
 		return
@@ -108,7 +109,7 @@ func register(w http.ResponseWriter, r *http.Request){
 	}
 	collection := db.MongoDB.Collection("users")
 	var user bson.M
-    err = collection.FindOne(ctx, bson.M{"$or": []interface{}{bson.M{"username": req.Username}, bson.M{"email": req.Username},},}).Decode(&user)
+    err = collection.FindOne(ctx, bson.M{"$or": []interface{}{bson.M{"username": req.Username}, bson.M{"email": req.Email},},}).Decode(&user)
     if err == nil {
             responses.BadRequest(w, "user_already_exists", "Username or email already in use")
             return
@@ -126,6 +127,7 @@ func register(w http.ResponseWriter, r *http.Request){
     
     user = bson.M{
             "username": req.Username,
+            "email": req.Email,
             "password": password,
         }
     _,err=collection.InsertOne(ctx,user)

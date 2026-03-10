@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+cd static/client
+pnpm i;
+pnpm run build;
+
+
+cd ../../
+go mod tidy
+go run main.go
