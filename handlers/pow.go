@@ -1,5 +1,4 @@
-package routes
-
+package handlers
 import (
 	"encoding/json"
 	"net/http"
