@@ -9,6 +9,11 @@ type RegisterRequest struct{
     Password     string `json:"password"`
     CaptchaValue string `json:"captchaValue"`
 }
+type ChangePasswordWithTokenRequest struct{
+    Password     string `json:"password"`
+    NewPassword     string `json:"new_password"`
+    CaptchaValue string `json:"captchaValue"`
+}
 type RevokeRequest struct {
     Token           string `json:"token"`
     TokenTypeHint   string `json:"token_type_hint,omitempty"` 

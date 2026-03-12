@@ -15,6 +15,7 @@ func SetupRoutes(mux *http.ServeMux) {
     //DONE BUT NEEDS NEW FEATURES
     mux.HandleFunc("POST /token",middleware.RequireJSONParams(handlers.Token, "grant_type"))
     //DONE
+    mux.HandleFunc("POST /change_password_with_token",middleware.RequireJSONParams(middleware.Protected(handlers.ChangePasswordWithToken, false), "password","new_password", "captchaValue"))
     mux.HandleFunc("POST /revoke",middleware.RequireJSONParams(middleware.Protected(handlers.Revoke, false), "token"))
     mux.HandleFunc("POST /logout",middleware.Protected(handlers.Logout, false))
     mux.HandleFunc("POST /refresh_token",middleware.Protected(handlers.Refresh, true))

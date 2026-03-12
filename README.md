@@ -26,8 +26,7 @@ To-do roadmap:
 	 - GET /devices (get a list of all active session and its corresponding
    User-Agent) 
 	 - POST /revoke_devices (revoke all sessions or a specific one)     
-	 - POST /introspect     
-	 - POST /change_password_with_token    
+	 - POST /introspect       
 	 - POST /change_password_with_recover_link     
 	 - POST /forgot_password     
 	 - POST /register_client - /register_client/{id}

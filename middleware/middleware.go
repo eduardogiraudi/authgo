@@ -161,7 +161,7 @@ func ValidateOAuthArgs(step string, next http.HandlerFunc) http.HandlerFunc{
         state := r.URL.Query().Get("state")
         collection := db.MongoDB.Collection("clients") 
         scope :=r.URL.Query().Get("scope")
-        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
         defer cancel()
         var client bson.M
         errcli := collection.FindOne(ctx, bson.M{"client_id": client_id}).Decode(&client)

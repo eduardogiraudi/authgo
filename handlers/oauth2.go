@@ -66,7 +66,7 @@ func Token(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
     defer cancel()
 
     var client bson.M
@@ -338,7 +338,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
         claims := token.Claims.(jwts.MapClaims)
 
         jti := claims["jti"].(string)
-        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
         defer cancel()
         val, err := db.RDB.Get(ctx, jti).Result()
         errdel := db.RDB.Del(ctx, jti).Err()
@@ -386,7 +386,7 @@ func Authorize(w http.ResponseWriter, r *http.Request) {
     }
 }
 func Revoke(w http.ResponseWriter, r *http.Request) {
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
     defer cancel()
         collection := db.MongoDB.Collection("tokens")
 

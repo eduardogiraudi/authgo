@@ -66,7 +66,7 @@ func JWKSHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func Register(w http.ResponseWriter, r *http.Request){
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
     defer cancel()
     
     var req RegisterRequest
@@ -139,7 +139,7 @@ func Register(w http.ResponseWriter, r *http.Request){
     
 }
 func Logout(w http.ResponseWriter, r *http.Request){
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
     defer cancel()
     claims, _ := jwts.GetClaims(r)
     sub := claims["sub"]
@@ -170,7 +170,71 @@ func Logout(w http.ResponseWriter, r *http.Request){
 
 
 
-
+func ChangePasswordWithToken(w http.ResponseWriter, r *http.Request){
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+    defer cancel()
+    var req ChangePasswordWithTokenRequest
+    
+secret := os.Getenv("ALTCHA_HMAC_KEY")
+if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		responses.BadRequest(w, "invalid_json", "Invalid JSON")
+		return
+	}
+ ok, errcaptcha := altcha.VerifySolution(req.CaptchaValue, secret, true)
+    if errcaptcha != nil || !ok {
+        responses.Unauthorized(w, "invalid_altcha", "Invalid Altcha value or expired")
+        return
+    }
+    valid:=utils.PasswordValidator(req.NewPassword)
+    if valid == false {
+    responses.BadRequest(w, "invalid_password", "Password must be between 12 and 36 characters long, contain at least one lowercase letter, one uppercase letter, one number, and one special character.")
+    return
+    }
+	collection := db.MongoDB.Collection("users")
+	claims, _ := jwts.GetClaims(r)
+	sub := claims["sub"].(string)
+	cid := claims["client_id"].(string)
+	if cid != os.Getenv("APP_CLIENT_ID"){
+		responses.Forbidden(w, "Insufficient permissions to change password. Use the official application")
+		return
+	}
+    var user bson.M
+    oid, err := primitive.ObjectIDFromHex(sub)
+        if err != nil {
+            responses.ServerError(w)
+            return 
+        }
+errusrnotfound := collection.FindOne(ctx, bson.M{
+	"_id": oid,
+}).Decode(&user)
+if errusrnotfound != nil {
+        responses.NotFound(w, "user_not_found", "User not found")
+        return
+    }
+    valid, error := passwords.ComparePassword(req.Password, user["password"].(string))
+    if error != nil {
+    responses.ServerError(w)
+    return
+    }
+    if valid == false {
+        responses.BadRequest(w,"invalid_credentials", "Invalid credentials")
+        return
+    }
+    pwd,errhash:=passwords.GenerateHash(req.NewPassword)
+    if errhash != nil{
+    responses.ServerError(w)
+    return
+    }
+    _,errupd:=collection.UpdateOne(ctx, bson.M{
+	"_id": oid,
+    },bson.M{"$set": bson.M{"password": pwd}})
+    if errupd != nil {
+    responses.ServerError(w)
+   	return 
+    }
+	responses.OK(w,"ok")
+	return
+}
 
 
 
@@ -211,7 +275,7 @@ func Otp(w http.ResponseWriter, r *http.Request){
     if validatetokerr == nil && token.Valid{
         claims := token.Claims.(jwts.MapClaims)
         jti := claims["jti"].(string)
-        ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+        ctx, cancel := context.WithTimeout(r.Context(), 35*time.Second)
         defer cancel()
         val, err := db.RDB.Get(ctx, jti).Result()
         if err != nil {
@@ -298,7 +362,7 @@ func ScopeDetails(w http.ResponseWriter, r *http.Request) {
     if validatetokerr == nil && token.Valid {
         claims := token.Claims.(jwts.MapClaims)
         jti := claims["jti"].(string)
-        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+        ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
         defer cancel()
 
         val, err := db.RDB.Get(ctx, jti).Result()
@@ -362,7 +426,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
     }
     var user bson.M
     collection := db.MongoDB.Collection("users")
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
     defer cancel()
     filter := bson.M{
         "$or": []bson.M{
