@@ -27,17 +27,20 @@ To-do roadmap:
    User-Agent) 
 	 - POST /revoke_devices (revoke all sessions or a specific one)     
 	 - POST /introspect       
-	 - POST /change_password_with_recover_link     
-	 - POST /forgot_password     
 	 - POST /register_client - /register_client/{id}
  - Complete all missing react client routes
 
 
-⚠️ IMPORTANT: OTP Worker Required
+## ⚠️ IMPORTANT: OTP Worker Required
 
-This authentication server implements a decoupled OTP (One-Time Password) verification system. To complete the login flow, you must run a separate OTP worker. The server acts as a producer, delegating both delivery and validation logic to external services via Redis.
-How it works:
+This authentication server implements a decoupled OTP (One-Time Password) verification system for both 2FA and password recovery. To complete the login flow and the password recovery flow, you must run a separate OTP worker. The server acts as a producer, delegating both delivery and validation logic to external services via Redis.
+## Note on OTP lengths: 
+  - Login(2FA): 6 Digits
+  - Recover Password: 8 Digits 
+ 
 
+## How it works:
+### Login flow
  - OTP Generation & Delivery: Upon successful credential validation, the
    server pushes a message to the Redis list generate_otp. Your worker
    should consume this to send the code to the user (e.g., via Email or
@@ -64,14 +67,24 @@ Message from Server (JSON on verify_otp list):
 ```
 Response from Worker (JSON on {queue_id}/{user_id}:{fingerprint} key):
 ```JSON
-
 {
   "valid": true,
   "reason": "optional_error_code",
   "remaining_attempts": 3
 }
 ```
-Error Codes (reason field):
+## Password Recovery Flow:
+  - Generation: Triggered by the /forgot-password endpoint. The server pushes to generate_recovery_otp. Your worker should generate an 8-digit code and send it.
+  - Verification: Triggered during password reset. The server pushes to verify_recovery_otp.
+  - Worker Response: The worker must RPush the result to RESPONSE/RECOVERY/{queue_id}. The server waits via BLPop (5s timeout, same data structure as 2FA response).
+Message from Server (JSON on generate_recovery_otp):
+```JSON 
+{
+  "queue_id": "uuid",
+  "email": "string"
+}
+```
+## Error Codes (reason field):
  - too_many_attempts: The session is immediately terminated.
  - expired_otp: The user is notified that the OTP is no longer valid.
  - Default: If valid is false, the system displays the remaining_attempts.

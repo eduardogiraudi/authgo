@@ -576,11 +576,180 @@ func ServeStatic(w http.ResponseWriter, r *http.Request) {
 
 
 
+func ForgotPassword(w http.ResponseWriter, r *http.Request){
+ var req ForgotPasswordRequest
+   	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+    defer cancel()
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        responses.BadRequest(w, "invalid_json","Invalid JSON")
+        return
+    }
+    secret := os.Getenv("ALTCHA_HMAC_KEY")
+    ok, errcaptcha := altcha.VerifySolution(req.CaptchaValue, secret, true)
+    if errcaptcha != nil || !ok {
+        responses.Unauthorized(w, "invalid_altcha", "Invalid Altcha value or expired")
+        return
+    }
+	collection := db.MongoDB.Collection("users")
+	var user bson.M
+       err := collection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user) 
+       if err != nil {
+           if errors.Is(err, mongo.ErrNoDocuments) {
+           responses.NotFound(w, "user_not_found", "Inserted email doesn't match with any existent user.")
+                       return
+           }
+           responses.ServerError(w)
+                   return
+           }
+           
+           
+           
+           now := time.Now()
+               
+               recoveryData, exists := user["password_recovery"].(primitive.M)
+               
+               var count int = 0
+               var lastAttempt time.Time
+           
+               if exists {
+                   count = int(recoveryData["count"].(int32))
+                   lastAttempt = recoveryData["last_attempt"].(primitive.DateTime).Time()
+               }
+           
+               if count >= 3 {
+                   if now.Sub(lastAttempt) < 30*time.Minute {
+                       responses.BadRequest(w, "rate_limit", "Too many attempts. Try again later.")
+                       return
+                   }
+                   count = 1
+               } else {
+                   count++
+               }
+               queue_id := uuid.New().String()
+               update := bson.M{
+                   "$set": bson.M{
+                       "requestedpasswordrecovery": true,
+                       "password_recovery": bson.M{
+                       "queue_id": queue_id,
+                           
+                           "count":        count,
+                           "last_attempt": now,
+                       },
+                   },
+               }
+           
+               _, err = collection.UpdateOne(ctx, bson.M{"email": req.Email}, update)
+               if err != nil {
+                   responses.ServerError(w)
+                   return
+               }
+               
+               var push RecoveryOtp
+       
+               push.QueueID = queue_id
+               push.Email = req.Email
+               pushJSON, _ := json.Marshal(push)
+               //different type of otp since we need a longer one
+               errredis := db.RDB.RPush(ctx, "generate_recovery_otp", pushJSON).Err()
+               if errredis != nil {
+                   responses.ServerError(w)
+                   return
+               }
+	responses.OK(w, queue_id)
+    return
+	
+}
 
+func ChangePasswordWithOTP(w http.ResponseWriter, r *http.Request){
+	var req ChangePasswordWithOTPRequest
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
 
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			responses.BadRequest(w, "invalid_json", "Invalid JSON")
+			return
+		}
+		secret := os.Getenv("ALTCHA_HMAC_KEY")
+			ok, errCaptcha := altcha.VerifySolution(req.CaptchaValue, secret, true)
+			if errCaptcha != nil || !ok {
+				responses.Unauthorized(w, "invalid_altcha", "Invalid Altcha value or expired")
+				return
+			}
+   valid:=utils.PasswordValidator(req.NewPassword)
+    if valid == false {
+    responses.BadRequest(w, "invalid_password", "Password must be between 12 and 36 characters long, contain at least one lowercase letter, one uppercase letter, one number, and one special character.")
+    return
+    }
+    verifyPayload, _ := json.Marshal(map[string]string{
+		"queue_id": req.ID,
+		"otp":      req.OTP,
+	})
+	
+	err := db.RDB.RPush(ctx, "verify_recovery_otp", verifyPayload).Err()
+	if err != nil {
+		responses.ServerError(w)
+		return
+	}	
+	responseKey := "RESPONSE/RECOVERY/" + req.ID
+	result, err := db.RDB.BLPop(ctx, 5*time.Second, responseKey).Result()
+		if err != nil {
+			responses.BadRequest(w, "otp_expired", "OTP expired or verification timeout")
+			return
+		}
+		var otpRes struct {
+			Valid             bool   `json:"valid"`
+			Reason            string `json:"reason"`
+			RemainingAttempts int    `json:"remaining_attempts"`
+		}
+		json.Unmarshal([]byte(result[1]), &otpRes)
 
+		if !otpRes.Valid {
+			responses.BadRequest(w, otpRes.Reason, fmt.Sprintf("Invalid OTP. Attempts left: %d", otpRes.RemainingAttempts))
+			return
+		}
+		hashedPassword, err := passwords.GenerateHash(req.NewPassword)
+			if err != nil {
+				responses.ServerError(w)
+				return
+			}
 
+			collection := db.MongoDB.Collection("users")
+			tokcollection := db.MongoDB.Collection("tokens")
+			filter := bson.M{"password_recovery.queue_id": req.ID} 
+			var user bson.M
+			errus := collection.FindOne(ctx, filter).Decode(&user)
+			if errus != nil {
+				responses.ServerError(w)
+				return
+			}
+			update := bson.M{
+				"$set": bson.M{
+					"password":                  hashedPassword,
+					"requestedpasswordrecovery": false,
+				},
+				"$unset": bson.M{
+					"password_recovery": "", 
+				},
+			}
 
-
-    
-
+			_, err = collection.UpdateOne(ctx, filter, update)
+			oid, ok := user["_id"].(primitive.ObjectID)
+			if err != nil {
+				responses.ServerError(w)
+				return
+			}
+			if !ok {
+				responses.ServerError(w)
+			    return
+			}
+			_, _ = tokcollection.UpdateMany(ctx,
+            bson.M{
+            "user_id":    oid.Hex(), 
+        },
+            bson.M{"$set": bson.M{
+                "banned":     true,
+            }},
+        )
+ responses.OK(w, "ok")
+    return
+}

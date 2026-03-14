@@ -15,6 +15,11 @@ func SetupRoutes(mux *http.ServeMux) {
     //DONE BUT NEEDS NEW FEATURES
     mux.HandleFunc("POST /token",middleware.RequireJSONParams(handlers.Token, "grant_type"))
     //DONE
+    mux.HandleFunc("POST /forgot_password", middleware.RequireJSONParams(handlers.ForgotPassword, "email", "captchaValue"))
+    mux.HandleFunc("POST /change_password_with_otp",middleware.RequireJSONParams(handlers.ChangePasswordWithOTP, "newPassword", "otp", "captchaValue", "id"))
+    
+    
+    
     mux.HandleFunc("POST /change_password_with_token",middleware.RequireJSONParams(middleware.Protected(handlers.ChangePasswordWithToken, false), "password","new_password", "captchaValue"))
     mux.HandleFunc("POST /revoke",middleware.RequireJSONParams(middleware.Protected(handlers.Revoke, false), "token"))
     mux.HandleFunc("POST /logout",middleware.Protected(handlers.Logout, false))
@@ -29,7 +34,7 @@ func SetupRoutes(mux *http.ServeMux) {
     mux.HandleFunc("GET /login", middleware.ValidateOAuthArgs("login",middleware.RequireArgs([]string{"client_id","response_type","redirect_uri","scope"},handlers.ServeStatic)))
     mux.HandleFunc("GET /register", middleware.ValidateOAuthArgs("login",middleware.RequireArgs([]string{"client_id","response_type","redirect_uri","scope"},handlers.ServeStatic)))
     mux.HandleFunc("GET /forgot_password", middleware.ValidateOAuthArgs("login",middleware.RequireArgs([]string{"client_id","response_type","redirect_uri","scope"},handlers.ServeStatic)))
-    mux.HandleFunc("GET /change_password_with_recover_link", middleware.ValidateOAuthArgs("login",middleware.RequireArgs([]string{"client_id","response_type","redirect_uri","scope"},handlers.ServeStatic)))
+    mux.HandleFunc("GET /change_password_with_otp", middleware.ValidateOAuthArgs("login",middleware.RequireArgs([]string{"client_id","response_type","redirect_uri","scope"},handlers.ServeStatic)))
     mux.HandleFunc("GET /assets/{path...}", handlers.ServeStatic)
     mux.HandleFunc("GET /.well-known/openid-configuration", handlers.OpenIDConfiguration)
     mux.HandleFunc("GET /.well-known/oauth-authorization-server", handlers.OpenIDConfiguration)

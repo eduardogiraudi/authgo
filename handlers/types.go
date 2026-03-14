@@ -40,3 +40,18 @@ type TokenRequest struct {
     RedirectURI  string `json:"redirect_uri,omitempty"`
     CodeVerifier string `json:"code_verifier,omitempty"`
 }
+type ForgotPasswordRequest struct{
+    Email     string `json:"email"`
+    CaptchaValue string `json:"captchaValue"`
+}
+type RecoveryOtp struct{
+    QueueID string `json:"queue_id"`
+    Email string `json:"email"`
+}
+type ChangePasswordWithOTPRequest struct{
+    ID     string `json:"id"`
+    CaptchaValue string `json:"captchaValue"`
+    OTP          string `json:"otp"`
+    NewPassword  string `json:"newPassword"`
+    
+}  
