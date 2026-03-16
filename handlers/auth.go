@@ -4,7 +4,7 @@ import (
  "encoding/json"
         "auth/db"
         "auth/cryptokeys"
-
+"math/rand"
         "context"
         "time"
     "go.mongodb.org/mongo-driver/bson"
@@ -436,7 +436,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
     }
     errusrnotfound := collection.FindOne(ctx, filter).Decode(&user)
     if errusrnotfound != nil {
-        responses.NotFound(w, "user_not_found", "User not found")
+    	responses.BadRequest(w,"invalid_credentials", "Invalid credentials")
         return
     }
     valid, error := passwords.ComparePassword(req.Password, user["password"].(string))
@@ -578,6 +578,7 @@ func ServeStatic(w http.ResponseWriter, r *http.Request) {
 
 func ForgotPassword(w http.ResponseWriter, r *http.Request){
  var req ForgotPasswordRequest
+ queue_id := uuid.New().String()
    	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
     defer cancel()
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -595,8 +596,27 @@ func ForgotPassword(w http.ResponseWriter, r *http.Request){
        err := collection.FindOne(ctx, bson.M{"email": req.Email}).Decode(&user) 
        if err != nil {
            if errors.Is(err, mongo.ErrNoDocuments) {
-           responses.NotFound(w, "user_not_found", "Inserted email doesn't match with any existent user.")
-                       return
+           //enum attack prevention logic
+           redisKey := "rate_limit:forgot_password:" + req.Email
+           db.RDB.SetEx(ctx, "fake_queue:"+queue_id, "1", 30*time.Minute)
+               
+               
+               count, _ := db.RDB.Incr(ctx, redisKey).Result()
+               // timing attack prevention
+               time.Sleep(time.Duration(100+rand.Intn(100)) * time.Millisecond)
+               if count == 1 {
+                   db.RDB.Expire(ctx, redisKey, 30*time.Minute)
+               }
+           
+               if count > 3 {
+                   responses.BadRequest(w, "rate_limit", "Too many attempts. Try again later.")
+                   return
+               }
+           
+               
+           
+               responses.OK(w, queue_id)
+               return
            }
            responses.ServerError(w)
                    return
@@ -625,7 +645,7 @@ func ForgotPassword(w http.ResponseWriter, r *http.Request){
                } else {
                    count++
                }
-               queue_id := uuid.New().String()
+               
                update := bson.M{
                    "$set": bson.M{
                        "requestedpasswordrecovery": true,
@@ -691,6 +711,25 @@ func ChangePasswordWithOTP(w http.ResponseWriter, r *http.Request){
 		return
 	}	
 	responseKey := "RESPONSE/RECOVERY/" + req.ID
+	if _, err := uuid.Parse(req.ID); err != nil {
+    responses.BadRequest(w, "otp_expired", "OTP expired or verification timeout")
+    return
+}
+
+isFake, _ := db.RDB.Exists(ctx, "fake_queue:"+req.ID).Result()
+if isFake > 0 {
+    fakeKey := "fake_queue_attempts:"+req.ID
+    attempts, _ := db.RDB.Incr(ctx, fakeKey).Result()
+    db.RDB.Expire(ctx, fakeKey, 30*time.Minute)
+    if attempts >= 3 {
+        db.RDB.Del(ctx, "fake_queue:"+req.ID)
+        db.RDB.Del(ctx, fakeKey)
+        responses.BadRequest(w, "otp_expired", "OTP expired or verification timeout")
+        return
+    }
+    responses.BadRequest(w, "invalid_otp", fmt.Sprintf("Invalid OTP. Attempts left: %d", 3-int(attempts)))
+    return
+}
 	result, err := db.RDB.BLPop(ctx, 5*time.Second, responseKey).Result()
 		if err != nil {
 			responses.BadRequest(w, "otp_expired", "OTP expired or verification timeout")

@@ -68,7 +68,10 @@ function ForgotPassword() {
       {err&&<Alert variant="danger" className="mt-1">{err}</Alert>}
 
 <div className="d-flex justify-content-center col-md-12"><ActionButton text={"Reset my password"} onClick={handleRecovery} disabled={!email || !captchaValue} /></div>
-        </> :!success? <>
+        </> : !success ? <>
+            <Alert variant="info">If the following email is correct ({email}) you'll receive an OTP to reset your password.</Alert>
+            
+            
           <PasswordInput value={password} setValue={setPassword} label="New password:" className="mb-2" error={!validatePassword() && password && 'Password must be between 12 and 36 characters, include an uppercase letter, a lowercase letter, a number, and a symbol.'}/>
 
           <OtpInput
@@ -81,7 +84,7 @@ function ForgotPassword() {
                   renderInput={(props) => <input {...props} />}
             />
             <Captcha setRecaptchaValue={setRecaptchaValue} className="mb-2"/>
-            <div className="d-flex justify-content-center col-md-12"><ActionButton text={"Submit"} onClick={handleOTP} disabled={otp.length < 8 || !captchaValue || !validatePassword()} /></div>
+            <div className="d-flex justify-content-center col-md-12"><ActionButton text={"Cancel"} onClick={() => { setEmail(''); setSuccess(false); setRecaptchaValue(null); setErr(''); setId('');  setOtp('')}}/><ActionButton text={"Submit"} onClick={handleOTP} disabled={otp.length < 8 || !captchaValue || !validatePassword()} /></div>
             {err && <Alert variant="danger" className="mt-1">{err}</Alert>}
           </> : <>
               <Alert variant="success" className="mt-1">Password changed successfully.</Alert>
