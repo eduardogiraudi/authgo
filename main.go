@@ -18,7 +18,7 @@ func main() {
 		fmt.Println("No .env found")
 	}
 	if os.Getenv("PEPPER") == "" {
-		fmt.Println("PEPPER not set\n")
+		fmt.Println("PEPPER not set")
 	}
 	cryptokeys.GenKeys(false)
 	if err := jwts.Init(); err != nil {

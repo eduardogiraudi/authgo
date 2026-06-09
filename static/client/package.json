@@ -12,7 +12,7 @@
   "dependencies": {
     "@mdi/js": "^7.4.47",
     "@mdi/react": "^1.6.1",
-    "altcha": "^2.3.0",
+    "altcha": "^2.1.0",
     "axios": "^1.13.4",
     "bootstrap": "^5.3.8",
     "react": "^18.3.1",

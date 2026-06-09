@@ -72,10 +72,10 @@ function Login() {
         inputStyle={'otp-input'}
         containerStyle={'otp-container mb-1'}
         value={otp}
-        onChange={setOtp}
+        onChange={(val) => setOtp(val.replace(/\D/g, ''))}
         numInputs={6}
         renderSeparator={''}
-        renderInput={(props) => <input {...props} />}
+        renderInput={(props) => <input {...props} inputMode="numeric" pattern="[0-9]*" />}
         />
         </>
 }

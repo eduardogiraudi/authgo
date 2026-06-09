@@ -196,6 +196,8 @@ input[type="text"],
 
 // --- OTP Section ---
 .otp-container {
+  display: flex;
+  justify-content: center;
   padding: 1rem 0;
   gap: 10px;
   
@@ -210,6 +212,15 @@ input[type="text"],
     &:focus {
       border-color: $accent-color !important;
       outline: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    gap: 5px;
+    .otp-input {
+      width: 2.5rem !important;
+      height: 3.5rem !important;
+      font-size: 1.2rem;
     }
   }
 }

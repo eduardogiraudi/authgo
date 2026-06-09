@@ -22,7 +22,8 @@ import (
     "auth/jwts"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "github.com/google/uuid"
-    "net/url"
+	"net"
+	"net/url"
 
 )
 func normalizeURI(uri string) string {
@@ -264,19 +265,22 @@ func ValidateOAuthArgs(step string, next http.HandlerFunc) http.HandlerFunc{
             if errjwt != nil {
                     responses.ServerError(w)
             }
-            authDomainRaw := os.Getenv("AUTH_SERVER_DOMAIN")
-            parsedDomain, _ := url.Parse(authDomainRaw)
-            cookieDomain := parsedDomain.Hostname()
-            newcookie := &http.Cookie{
-            Name:     "session_token",
-            Value:    token,
-            Path:     "/",
-            Domain:   cookieDomain,
-            MaxAge:   600, 
-            HttpOnly: true, 
-            Secure:   secure, 
-            SameSite: http.SameSiteLaxMode,
-            }
+			authDomainRaw := os.Getenv("AUTH_SERVER_DOMAIN")
+			parsedDomain, _ := url.Parse(authDomainRaw)
+			hostname := parsedDomain.Hostname()
+			isLocalOrIP := hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" || net.ParseIP(hostname) != nil
+			newcookie := &http.Cookie{
+				Name:     "session_token",
+				Value:    token,
+				Path:     "/",
+				MaxAge:   600,
+				HttpOnly: true,
+				Secure:   secure,
+				SameSite: http.SameSiteLaxMode,
+			}
+			if !isLocalOrIP {
+				newcookie.Domain = hostname
+			}
             http.SetCookie(w, newcookie)
             if step != "login" {
                 authURL := os.Getenv("AUTH_SERVER_DOMAIN") + "/login?" + r.URL.RawQuery
@@ -290,17 +294,21 @@ func ValidateOAuthArgs(step string, next http.HandlerFunc) http.HandlerFunc{
                 jti := claims["jti"].(string)
                 val, err := db.RDB.Get(ctx, jti).Result()
                 if err != nil {
-                    authDomainRaw := os.Getenv("AUTH_SERVER_DOMAIN")
-                    parsedDomain, _ := url.Parse(authDomainRaw)
-                    
-                    http.SetCookie(w, &http.Cookie{
-                        Name:     "session_token",
-                        Value:    "",
-                        Path:     "/",
-                        Domain:   parsedDomain.Hostname(),
-                        MaxAge:   -1, 
-                        HttpOnly: true,
-                    })
+					authDomainRaw := os.Getenv("AUTH_SERVER_DOMAIN")
+					parsedDomain, _ := url.Parse(authDomainRaw)
+					hostname := parsedDomain.Hostname()
+					isLocalOrIP := hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" || net.ParseIP(hostname) != nil
+					cookie := &http.Cookie{
+						Name:     "session_token",
+						Value:    "",
+						Path:     "/",
+						MaxAge:   -1,
+						HttpOnly: true,
+					}
+					if !isLocalOrIP {
+						cookie.Domain = hostname
+					}
+					http.SetCookie(w, cookie)
 
                     http.Redirect(w, r, r.URL.String(), http.StatusFound)
                     return
@@ -355,19 +363,22 @@ func ValidateOAuthArgs(step string, next http.HandlerFunc) http.HandlerFunc{
             if errjwt != nil {
                     responses.ServerError(w)
             }
-            authDomainRaw := os.Getenv("AUTH_SERVER_DOMAIN")
-            parsedDomain, _ := url.Parse(authDomainRaw)
-            cookieDomain := parsedDomain.Hostname()
-            newcookie := &http.Cookie{
-            Name:     "session_token",
-            Value:    token,
-            Path:     "/",
-            Domain:   cookieDomain,
-            MaxAge:   600, 
-            HttpOnly: true, 
-            Secure:   secure, 
-            SameSite: http.SameSiteLaxMode,
-            }
+			authDomainRaw := os.Getenv("AUTH_SERVER_DOMAIN")
+			parsedDomain, _ := url.Parse(authDomainRaw)
+			hostname := parsedDomain.Hostname()
+			isLocalOrIP := hostname == "localhost" || hostname == "127.0.0.1" || hostname == "::1" || net.ParseIP(hostname) != nil
+			newcookie := &http.Cookie{
+				Name:     "session_token",
+				Value:    token,
+				Path:     "/",
+				MaxAge:   600,
+				HttpOnly: true,
+				Secure:   secure,
+				SameSite: http.SameSiteLaxMode,
+			}
+			if !isLocalOrIP {
+				newcookie.Domain = hostname
+			}
             http.SetCookie(w, newcookie)
             }
         }
@@ -386,13 +397,29 @@ func ValidateOAuthArgs(step string, next http.HandlerFunc) http.HandlerFunc{
 func Protected(next http.HandlerFunc,  isRefresh bool) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         var rawToken string
+        refreshFromBody := false
         if isRefresh {
             cookie, err := r.Cookie("refresh_token")
-            if err != nil {
-                responses.Unauthorized(w, "missing_refresh_token", "Refresh token cookie is missing")
-                return
+            if err == nil {
+                rawToken = cookie.Value
+            } else {
+                bodyBytes, readErr := io.ReadAll(r.Body)
+                if readErr != nil {
+                    responses.BadRequest(w, "invalid_request", "Error reading body")
+                    return
+                }
+                r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+                var data struct {
+                    RefreshToken string `json:"refresh_token"`
+                }
+                if err := json.Unmarshal(bodyBytes, &data); err != nil || data.RefreshToken == "" {
+                    responses.Unauthorized(w, "missing_refresh_token", "Refresh token cookie is missing")
+                    return
+                }
+                rawToken = data.RefreshToken
+                refreshFromBody = true
             }
-            rawToken = cookie.Value
         } else {
             authHeader := r.Header.Get("Authorization")
             if !strings.HasPrefix(authHeader, "DPoP ") {
@@ -527,7 +554,13 @@ func Protected(next http.HandlerFunc,  isRefresh bool) http.HandlerFunc {
             expectedHTU,
             ecdsaPubKey,
         )
-
+        if isRefresh && refreshFromBody {
+            appClient, _ := dpopClaims["app"].(bool)
+            if !appClient {
+                responses.Unauthorized(w, "missing_refresh_token", "Refresh token cookie is missing")
+                return
+            }
+        }
         tokenID := registeredToken["_id"].(primitive.ObjectID)
         if err != nil {
             responses.Unauthorized(w, "invalid_dpop", "DPoP verification failed")

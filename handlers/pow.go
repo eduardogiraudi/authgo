@@ -13,7 +13,7 @@ func GetCaptchaChallenge(w http.ResponseWriter, r *http.Request) {
 
 	options := altcha.ChallengeOptions{
 		HMACKey:   secret,
-		MaxNumber: 200000, 
+		MaxNumber: 50000, 
 		Expires:   &expiry,
 	}
 
